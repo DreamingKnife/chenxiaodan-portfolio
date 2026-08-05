@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>舟行 · 冒险者档案 — The Legend of Xiaozhou</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg-deep:#08130c;
+    --wood-1:#4a2f17;
+    --wood-2:#3a2412;
+    --wood-3:#2a1809;
+    --gold:#e8c66a;
+    --gold-soft:#c9a04a;
+    --parch:#f3e9c8;
+    --parch-dim:#cbb98a;
+    --red:#e23b2e;
+    --red-dark:#3a1812;
+    --green:#7bd66a;
+    --ink:#120a04;
+    --line:#1c0f06;
+    --pix: 'Press Start 2P', monospace;
+    --cjk: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--cjk);
+    background:
+      radial-gradient(circle at 50% -10%, #16331f 0%, var(--bg-deep) 60%),
+      var(--bg-deep);
+    color:var(--parch);
+    min-height:100vh;
+    padding:22px;
+    -webkit-font-smoothing:antialiased;
+    image-rendering:pixelated;
+  }
+  /* faint scanlines for CRT retro feel */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:999;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 1px, transparent 1px 3px);
+    mix-blend-mode:multiply;opacity:.5;
+  }
+
+  .game-frame{
+    max-width:1280px;margin:0 auto;
+    background:linear-gradient(180deg,var(--wood-1),var(--wood-2));
+    border:5px solid var(--line);
+    box-shadow:
+      inset 0 0 0 3px var(--gold-soft),
+      inset 0 0 0 6px var(--wood-3),
+      0 0 0 5px #000,
+      0 14px 40px rgba(0,0,0,.6);
+    padding:24px;
+  }
+
+  /* ---------- HUD (top bar) ---------- */
+  .hud{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    border:3px solid var(--line);
+    background:linear-gradient(180deg,#243b27,#16271a);
+    box-shadow:inset 0 0 0 2px var(--gold-soft);
+    padding:12px 16px;margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+  .title{
+    font-family:var(--cjk);font-weight:900;letter-spacing:1px;
+    font-size:clamp(15px,3.4vw,22px);
+    color:var(--gold);
+    text-shadow:2px 2px 0 #000, 0 0 12px rgba(232,198,106,.35);
+  }
+  .title small{display:block;font-family:var(--pix);font-size:8px;color:var(--parch-dim);letter-spacing:1px;margin-top:6px;}
+  .hp{display:flex;align-items:center;gap:8px;}
+  .hp .label{font-family:var(--pix);font-size:9px;color:var(--parch-dim);}
+  .hearts{display:flex;gap:4px;}
+  .heart{width:26px;height:23px;color:var(--red-dark);transition:transform .25s, color .3s;}
+  .heart.full{color:var(--red);filter:drop-shadow(0 0 4px rgba(226,59,46,.8));}
+  .heart.full.pop{transform:scale(1.35);}
+  .heart svg{width:100%;height:100%;display:block;fill:currentColor;}
+
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:250px 1fr;gap:18px;}
+  @media(max-width:760px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---------- nav (interactive menu) ---------- */
+  .nav{display:flex;flex-direction:column;gap:10px;}
+  @media(max-width:760px){
+    .nav{flex-direction:row;overflow-x:auto;padding-bottom:6px;}
+    .nav::-webkit-scrollbar{height:6px;}
+    .nav::-webkit-scrollbar-thumb{background:var(--gold-soft);}
+  }
+  .nav-btn{
+    font-family:var(--cjk);font-weight:700;font-size:15px;
+    text-align:left;cursor:pointer;color:var(--parch);
+    background:linear-gradient(180deg,#39240f,#241606);
+    border:3px solid var(--line);
+    box-shadow:inset 0 0 0 2px var(--gold-soft), 3px 3px 0 #000;
+    padding:12px 12px;transition:transform .12s, background .2s;
+    display:flex;align-items:center;gap:10px;white-space:nowrap;
+  }
+  .nav-btn .ico{font-size:20px;}
+  .nav-btn:hover{transform:translate(-1px,-1px);}
+  .nav-btn:active{transform:translate(2px,2px);box-shadow:inset 0 0 0 2px var(--gold-soft),1px 1px 0 #000;}
+  .nav-btn.active{
+    background:linear-gradient(180deg,#5a3a18,#3a2410);
+    color:var(--gold);
+    box-shadow:inset 0 0 0 2px var(--gold), 3px 3px 0 #000, 0 0 14px rgba(232,198,106,.4);
+  }
+  @media(max-width:760px){.nav-btn{flex:0 0 auto;}}
+
+  /* ---------- screen / panels ---------- */
+  .screen{position:relative;min-height:560px;}
+  .panel{
+    display:none;
+    background:linear-gradient(180deg,#2c1c0d,#1f1308);
+    border:4px solid var(--line);
+    box-shadow:inset 0 0 0 2px var(--gold-soft), 0 6px 0 #000;
+    padding:24px;
+    animation:fade .35s ease;
+  }
+  .panel.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .panel h2{
+    font-size:clamp(18px,4vw,24px);color:var(--gold);
+    text-shadow:2px 2px 0 #000;margin-bottom:14px;
+    border-bottom:3px dashed var(--gold-soft);padding-bottom:10px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .panel h2 .en{font-family:var(--pix);font-size:9px;color:var(--parch-dim);font-weight:400;}
+
+  /* character card (personal info) */
+  .char{display:grid;grid-template-columns:140px 1fr;gap:22px;align-items:start;}
+  @media(max-width:520px){.char{grid-template-columns:1fr;justify-items:center;text-align:center;}}
+  .avatar{
+    width:140px;height:140px;flex:0 0 auto;
+    background:repeating-conic-gradient(#3a2412 0% 25%, #2a1809 0% 50%) 0/24px 24px;
+    border:4px solid var(--line);box-shadow:inset 0 0 0 3px var(--gold-soft);
+    display:flex;align-items:center;justify-content:center;font-size:76px;
+  }
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;font-size:16px;margin-bottom:14px;}
+  .kv dt{color:var(--gold-soft);font-weight:700;white-space:nowrap;}
+  .kv dd{color:var(--parch);}
+  .tags{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px;}
+  .tag{
+    font-size:13px;padding:6px 12px;color:var(--parch);
+    background:#241606;border:2px solid var(--gold-soft);box-shadow:2px 2px 0 #000;
+  }
+  .stats{display:grid;gap:10px;}
+  .stat{display:grid;grid-template-columns:100px 1fr 46px;align-items:center;gap:10px;font-size:15px;}
+  .stat .bar{height:14px;background:#160d05;border:2px solid var(--line);position:relative;overflow:hidden;}
+  .stat .bar i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--green),#3f8f33);transition:width .8s ease;}
+  .stat .num{font-family:var(--pix);font-size:10px;color:var(--gold);text-align:right;}
+
+  /* skill cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .card{
+    background:linear-gradient(180deg,#39240f,#241606);
+    border:3px solid var(--line);box-shadow:inset 0 0 0 2px var(--gold-soft),3px 3px 0 #000;
+    padding:14px;transition:transform .12s;
+  }
+  .card:hover{transform:translateY(-3px);}
+  .card .top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .card .ico{font-size:30px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+    background:#160d05;border:2px solid var(--gold-soft);box-shadow:inset 0 0 0 2px #000;}
+  .card h3{font-size:16px;color:var(--gold);}
+  .card .lv{font-family:var(--pix);font-size:9px;color:var(--parch-dim);margin-top:3px;}
+  .card p{font-size:14px;color:var(--parch-dim);line-height:1.7;margin-top:8px;}
+  .xp{height:12px;background:#160d05;border:2px solid var(--line);margin-top:10px;position:relative;overflow:hidden;}
+  .xp i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,#e8c66a,#c98a2a);transition:width .9s ease;}
+
+  /* adventure log */
+  .log{display:grid;gap:12px;}
+  .quest{
+    background:linear-gradient(180deg,#2c1c0d,#1c1107);
+    border:3px solid var(--line);border-left:8px solid var(--gold);
+    box-shadow:inset 0 0 0 2px var(--gold-soft);
+    padding:14px 16px;position:relative;
+  }
+  .quest::before{content:"◆";position:absolute;left:-22px;top:14px;color:var(--gold);font-size:12px;}
+  .quest h3{font-size:17px;color:var(--gold);margin-bottom:6px;}
+  .quest .meta{font-family:var(--pix);font-size:9px;color:var(--parch-dim);margin-bottom:8px;letter-spacing:.5px;}
+  .quest p{font-size:15px;color:var(--parch);line-height:1.7;}
+  .quest .reward{margin-top:8px;font-size:14px;color:var(--green);}
+  .quest .reward b{color:var(--gold);}
+
+  /* interests */
+  .cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+  .cat{background:linear-gradient(180deg,#39240f,#241606);border:3px solid var(--line);
+    box-shadow:inset 0 0 0 2px var(--gold-soft),3px 3px 0 #000;padding:14px;}
+  .cat h3{font-size:17px;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+  .cat ul{list-style:none;display:grid;gap:10px;}
+  .cat li{font-size:15px;color:var(--parch);padding-left:18px;position:relative;line-height:1.6;}
+  .cat li::before{content:"▸";position:absolute;left:0;color:var(--green);}
+
+  /* equipment / inventory grid */
+  .inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;}
+  .slot{
+    aspect-ratio:1/1;background:#160d05;border:3px solid var(--line);
+    box-shadow:inset 0 0 0 2px #000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:4px;text-align:center;padding:6px;
+    position:relative;
+  }
+  .slot.has{box-shadow:inset 0 0 0 2px var(--gold-soft);background:linear-gradient(180deg,#39240f,#241606);}
+  .slot .si{font-size:30px;}
+  .slot .sn{font-size:13px;color:var(--parch);font-weight:700;line-height:1.2;}
+  .slot .st{font-family:var(--pix);font-size:8px;padding:2px 4px;margin-top:2px;}
+  .st.use{color:#0a1a0a;background:var(--green);}
+  .st.learn{color:#1a1205;background:var(--gold);}
+  .st.hold{color:var(--parch);background:#5a3a18;}
+  .slot.lock{opacity:.5;}
+  .slot.lock .si{filter:grayscale(1) brightness(.5);}
+  .slot.lock .sn{color:var(--parch-dim);}
+
+  .foot{margin-top:14px;text-align:center;font-family:var(--pix);font-size:8px;color:var(--parch-dim);line-height:1.8;}
+  .hint{color:var(--gold);}
+
+  /* ---------- BGM player (pixel wood control) ---------- */
+  .bgm{
+    position:fixed; right:14px; bottom:14px; z-index:1000;
+    display:flex; align-items:center; gap:10px;
+    background:linear-gradient(180deg,#39240f,#241606);
+    border:3px solid var(--line);
+    box-shadow:inset 0 0 0 2px var(--gold-soft), 3px 3px 0 #000;
+    padding:8px 12px; font-family:var(--cjk);
+    max-width:calc(100vw - 28px);
+  }
+  .bgm .play{
+    cursor:pointer; width:38px; height:38px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; font-size:16px; line-height:1;
+    background:#160d05; border:2px solid var(--gold-soft); box-shadow:inset 0 0 0 2px #000;
+    color:var(--gold); transition:transform .1s;
+  }
+  .bgm .play:active{transform:translate(1px,1px);}
+  .bgm .play:disabled{opacity:.5; cursor:not-allowed;}
+  .bgm .meta{display:flex; flex-direction:column; gap:4px; min-width:0;}
+  .bgm .name{font-size:11px; color:var(--parch); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px;}
+  .bgm .row{display:flex; align-items:center; gap:7px;}
+  .bgm .vol-ico{font-size:12px; color:var(--gold-soft);}
+  .bgm input[type=range]{
+    -webkit-appearance:none; appearance:none; width:88px; height:6px;
+    background:#160d05; border:2px solid var(--line); cursor:pointer;
+  }
+  .bgm input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:12px; height:14px;
+    background:var(--gold); border:2px solid var(--line); cursor:pointer;
+  }
+  .bgm input[type=range]::-moz-range-thumb{
+    width:12px; height:14px; background:var(--gold); border:2px solid var(--line); cursor:pointer;
+  }
+  .bgm input[type=range]:disabled{opacity:.5; cursor:not-allowed;}
+  .bgm .loop{font-family:var(--pix); font-size:8px; color:var(--green); white-space:nowrap;}
+  @media(max-width:520px){
+    .bgm{right:8px; bottom:8px; padding:6px 8px; gap:6px;}
+    .bgm .name{display:none;}
+    .bgm input[type=range]{width:58px;}
+  }
+</style>
+</head>
+<body>
+  <div class="game-frame">
+    <header class="hud">
+      <div class="title">舟行 · 冒险者档案<small>THE LEGEND OF XIAOZHOU</small></div>
+      <div class="hp">
+        <span class="label">HP</span>
+        <div class="hearts" id="hearts" aria-label="探索进度血量条"></div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="nav" id="nav" aria-label="板块导航">
+        <button class="nav-btn active" data-target="info"><span class="ico">🪪</span>个人信息</button>
+        <button class="nav-btn" data-target="skills"><span class="ico">🗡️</span>技能特长</button>
+        <button class="nav-btn" data-target="log"><span class="ico">📜</span>冒险日志</button>
+        <button class="nav-btn" data-target="hobbies"><span class="ico">🌿</span>兴趣爱好</button>
+        <button class="nav-btn" data-target="equip"><span class="ico">🎒</span>装备栏</button>
+      </nav>
+
+      <main class="screen" id="screen">
+        <!-- 个人信息 -->
+        <section class="panel active" id="info">
+          <h2>个人信息 <span class="en">/ CHARACTER</span></h2>
+          <div class="char">
+            <div class="avatar">🦊</div>
+            <div>
+              <dl class="kv">
+                <dt>姓名</dt><dd>陈晓丹（昵称「舟行」）</dd>
+                <dt>年龄</dt><dd>22（27届 · 准大四）</dd>
+                <dt>院校</dt><dd>兰州城市学院</dd>
+                <dt>专业</dt><dd>会计学 · 智能会计方向</dd>
+                <dt>定位</dt><dd>复合型「问题解决者 + 团队赋能者」<br>玩家型译者 + 技术派策展人</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="tags">
+            <span class="tag">务实的理想主义者</span>
+            <span class="tag">先完成再完美</span>
+            <span class="tag">工具制造者</span>
+            <span class="tag">有条理 · 持续学习</span>
+            <span class="tag">游戏硬核玩家</span>
+            <span class="tag">数据驱动决策</span>
+          </div>
+          <div class="stats" id="stats">
+            <div class="stat"><span>执行力</span><span class="bar"><i data-w="92"></i></span><span class="num">92</span></div>
+            <div class="stat"><span>复盘力</span><span class="bar"><i data-w="88"></i></span><span class="num">88</span></div>
+            <div class="stat"><span>创意</span><span class="bar"><i data-w="80"></i></span><span class="num">80</span></div>
+            <div class="stat"><span>协作</span><span class="bar"><i data-w="90"></i></span><span class="num">90</span></div>
+            <div class="stat"><span>技术应用</span><span class="bar"><i data-w="78"></i></span><span class="num">78</span></div>
+          </div>
+        </section>
+
+        <!-- 技能特长 -->
+        <section class="panel" id="skills">
+          <h2>技能与特长 <span class="en">/ SKILLS</span></h2>
+          <div class="cards" id="skillCards"></div>
+        </section>
+
+        <!-- 冒险日志 -->
+        <section class="panel" id="log">
+          <h2>个人经历与成就 · 冒险日志 <span class="en">/ QUEST LOG</span></h2>
+          <div class="log" id="questLog"></div>
+        </section>
+
+        <!-- 兴趣爱好 -->
+        <section class="panel" id="hobbies">
+          <h2>兴趣爱好 <span class="en">/ INTERESTS</span></h2>
+          <div class="cats" id="cats"></div>
+        </section>
+
+        <!-- 装备栏 -->
+        <section class="panel" id="equip">
+          <h2>装备栏 · 当前工具 / 技术 <span class="en">/ INVENTORY</span></h2>
+          <div class="inv" id="inv"></div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="foot">
+      <span class="hint">▶</span> 点击左侧菜单或按 ← → 切换板块 · 集齐心形血量即解锁完整档案
+    </footer>
+  </div>
+
+  <!-- 背景音乐：隐藏控件 + 循环 + 点击网页任意处触发（1.5s 淡入淡出，见下方脚本） -->
+  <audio id="bgm" loop preload="metadata"></audio>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- pixel heart (SVG) ---------- */
+  var HEART = [
+    "0110110",
+    "1111111",
+    "1111111",
+    "0111110",
+    "0011100",
+    "0001000"
+  ];
+  function heartSVG(){
+    var rects = "";
+    for(var y=0;y<HEART.length;y++){
+      for(var x=0;x<HEART[y].length;x++){
+        if(HEART[y][x]==="1") rects += '<rect x="'+x+'" y="'+y+'" width="1" height="1"/>';
+      }
+    }
+    return '<svg viewBox="0 0 7 6" shape-rendering="crispEdges" aria-hidden="true">'+rects+'</svg>';
+  }
+
+  /* ---------- data ---------- */
+  var SKILLS = [
+    {ico:"📖",name:"翻译 · 本地化",lv:5,xp:95,desc:"出版级文学翻译，英译中项目负责人"},
+    {ico:"📊",name:"数据分析",lv:4,xp:82,desc:"Excel 透视 / Power BI / 词频统计"},
+    {ico:"🎬",name:"视频剪辑",lv:4,xp:80,desc:"CapCut 全流程：素材·卡点·特效·文案"},
+    {ico:"📋",name:"项目管理",lv:5,xp:90,desc:"20 条协作规范，20+ 人团队 0 逾期"},
+    {ico:"⚙️",name:"自动化 RPA/VBA",lv:3,xp:65,desc:"财务机器人、重复任务流程优化"},
+    {ico:"🤖",name:"AI 工具应用",lv:4,xp:85,desc:"DeepSeek / WorkBuddy 工作流搭建"},
+    {ico:"💰",name:"财务建模",lv:3,xp:62,desc:"SWOT / RFM / 盈亏平衡 / 杠杆"},
+    {ico:"📣",name:"内容运营",lv:4,xp:78,desc:"抖音 / 小红书养号与数据复盘"}
+  ];
+
+  var QUESTS = [
+    {t:"出版级文学翻译",m:"ACHIEVEMENT · 文学",d:"牵头翻译冈本加奈子《雏妓》、安妮·塞克斯顿《去精神病院半途而归》全本，并参与译言古登堡诗集本地化。",r:"译者署名 · 出版级出品"},
+    {t:"长腿信箱 · 公益编辑",m:"QUEST · 共情",d:"为儿童写共情回信，曾处理涉及自杀倾向的紧急来信，完成危机干预转介。",r:"共情力 +100 · 守护者勋章"},
+    {t:"《五行战纪》卡牌设计",m:"SIDE QUEST · 创作",d:"从 0 设计融合五行相克 + 站位策略的卡牌规则，借 AI + KIBAKO 做出可玩原型。",r:"从 0 到 1 产品落地"},
+    {t:"校园账号养号项目",m:"QUEST · 运营",d:"为两校四号（抖音 / 小红书）制定运营计划：文案、视频、发布策略与数据复盘。",r:"运营 SOP 蓝图"},
+    {t:"剑网3 藏剑 PVE 教学文档",m:"QUEST · 传承",d:"深研旗舰端藏剑 PVE 机制，为徒弟写由浅入深的教学文档（机制 / 奇穴 / 配装 / 循环）。",r:"师徒传承 · 教学卷轴"},
+    {t:"第八组共创路演",m:"BOSS · 路演",d:"设计「英雄帖 / 茶摊 / 快闪」三套路演方案并推荐「英雄帖」，打磨「去 AI 味」对外文案。",r:"记忆点「最敢先做第一版」"},
+    {t:"20 条协作规范",m:"ACHIEVEMENT · 团队",d:"从 0 到 1 制定协作规范，术语一致性 82%→96%、返修率 -30%、团队 0 逾期。",r:"团队信任锚点"}
+  ];
+
+  var CATS = [
+    {ico:"🎮",name:"游戏（硬核 3000h+）",items:["明日方舟 965h","原神 500h","剑网3 200h+","恐怖解谜 / 独立 AVG"]},
+    {ico:"✒️",name:"文学与翻译",items:["诗歌本地化","出版级文学翻译","深度阅读与精读"]},
+    {ico:"🎨",name:"内容创作",items:["视频剪辑","小红书 / 抖音文案","账号养号与复盘"]},
+    {ico:"🌸",name:"二次元 · 文创",items:["同人策展","游戏文化研究","叙事 / 团队人设"]}
+  ];
+
+  var INV = [
+    {si:"📊",sn:"Excel",st:"use",s:"使用中"},
+    {si:"📈",sn:"Power BI",st:"use",s:"使用中"},
+    {si:"🎬",sn:"CapCut",st:"use",s:"使用中"},
+    {si:"🧠",sn:"DeepSeek",st:"use",s:"日常"},
+    {si:"🛠️",sn:"WorkBuddy",st:"use",s:"日常"},
+    {si:"💬",sn:"飞书",st:"use",s:"熟练"},
+    {si:"⚙️",sn:"VBA/RPA",st:"hold",s:"维护中"},
+    {si:"📝",sn:"Notion",st:"learn",s:"学习中"},
+    {si:"🐍",sn:"Python",st:"learn",s:"入门"},
+    {si:"🤖",sn:"财务机器人",st:"learn",s:"课程"},
+    {si:"❔",sn:"锁定",st:"",s:"",lock:true},
+    {si:"❔",sn:"锁定",st:"",s:"",lock:true}
+  ];
+
+  /* ---------- render ---------- */
+  function render(){
+    // skills
+    var sc = document.getElementById("skillCards");
+    sc.innerHTML = SKILLS.map(function(s){
+      return '<div class="card"><div class="top"><div class="ico">'+s.ico+'</div>'+
+        '<div><h3>'+s.name+'</h3><div class="lv">LV.'+s.lv+'</div></div></div>'+
+        '<p>'+s.desc+'</p><div class="xp"><i data-w="'+s.xp+'"></i></div></div>';
+    }).join("");
+    // quests
+    var ql = document.getElementById("questLog");
+    ql.innerHTML = QUESTS.map(function(q){
+      return '<div class="quest"><h3>'+q.t+'</h3><div class="meta">'+q.m+'</div>'+
+        '<p>'+q.d+'</p><div class="reward">🎁 奖励：<b>'+q.r+'</b></div></div>';
+    }).join("");
+    // cats
+    var ct = document.getElementById("cats");
+    ct.innerHTML = CATS.map(function(c){
+      return '<div class="cat"><h3>'+c.ico+' '+c.name+'</h3><ul>'+
+        c.items.map(function(i){return '<li>'+i+'</li>';}).join("")+'</ul></div>';
+    }).join("");
+    // inventory
+    var iv = document.getElementById("inv");
+    iv.innerHTML = INV.map(function(it){
+      if(it.lock) return '<div class="slot lock"><div class="si">'+it.si+'</div><div class="sn">'+it.sn+'</div></div>';
+      var cls = it.st==="use"?"use":it.st==="learn"?"learn":"hold";
+      return '<div class="slot has"><div class="si">'+it.si+'</div><div class="sn">'+it.sn+'</div>'+
+        '<span class="st '+cls+'">'+it.s+'</span></div>';
+    }).join("");
+  }
+
+  /* ---------- hearts (progress / HP bar) ---------- */
+  var SECTIONS = ["info","skills","log","hobbies","equip"];
+  var visited = {};
+  var heartsBox = document.getElementById("hearts");
+  function buildHearts(){
+    heartsBox.innerHTML = "";
+    for(var i=0;i<SECTIONS.length;i++){
+      var h = document.createElement("div");
+      h.className = "heart";
+      h.innerHTML = heartSVG();
+      heartsBox.appendChild(h);
+    }
+  }
+  function updateHearts(justFilled){
+    var hs = heartsBox.children;
+    for(var i=0;i<hs.length;i++){
+      if(visited[SECTIONS[i]]){
+        hs[i].classList.add("full");
+        if(justFilled===i){ hs[i].classList.add("pop"); (function(el){setTimeout(function(){el.classList.remove("pop");},260);})(hs[i]); }
+      }
+    }
+  }
+
+  /* ---------- navigation ---------- */
+  var navBtns = Array.prototype.slice.call(document.querySelectorAll(".nav-btn"));
+  var panels = {};
+  SECTIONS.forEach(function(id){ panels[id] = document.getElementById(id); });
+
+  function go(target, idx){
+    navBtns.forEach(function(b){ b.classList.toggle("active", b.dataset.target===target); });
+    SECTIONS.forEach(function(id){ panels[id].classList.toggle("active", id===target); });
+    if(!visited[target]){ visited[target]=true; updateHearts(SECTIONS.indexOf(target)); }
+    // animate bars when a panel becomes visible
+    setTimeout(animateBars, 60);
+    if(history.replaceState) history.replaceState(null,"","#"+target);
+  }
+  navBtns.forEach(function(b){
+    b.addEventListener("click", function(){ go(b.dataset.target); });
+  });
+
+  function animateBars(){
+    document.querySelectorAll(".panel.active .bar i, .panel.active .xp i").forEach(function(el){
+      el.style.width = (el.dataset.w||0)+"%";
+    });
+  }
+
+  /* keyboard nav */
+  var cur = 0;
+  document.addEventListener("keydown", function(e){
+    if(e.key==="ArrowRight"||e.key==="ArrowDown"){ cur=(cur+1)%SECTIONS.length; go(SECTIONS[cur]); }
+    else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){ cur=(cur-1+SECTIONS.length)%SECTIONS.length; go(SECTIONS[cur]); }
+  });
+
+  /* init */
+  render();
+  buildHearts();
+  var start = (location.hash||"").replace("#","");
+  if(start && SECTIONS.indexOf(start)>=0){ cur = SECTIONS.indexOf(start); go(start); }
+  else { go("info"); }
+  // mark initial visited
+  visited["info"]=true; updateHearts(-1);
+
+  /* ---------- BGM player（隐藏入口版）----------
+     需求：点击网页任意处触发（首次点击即开始、再次点击暂停），隐藏所有播放控件，
+     音乐循环播放（<audio loop> 原生无缝衔接），开始 / 停止带 1.5s 平滑淡入淡出。 */
+  var MUSIC_SRC = "Song of Storms.MP3";
+  var bgm = document.getElementById("bgm");
+  if(bgm && MUSIC_SRC){
+    bgm.loop = true;
+    bgm.preload = "auto";
+    bgm.src = MUSIC_SRC;
+    var BGM_TARGET = 0.6;   // 淡入终点音量（0~1）
+    var BGM_FADE = 1500;    // 淡入淡出时长（ms）
+    var bgmOn = false;
+    var bgmToken = 0;       // 淡变令牌，用于取消进行中的过渡
+
+    // 用 rAF 平滑调节音量，smoothstep 缓动避免爆音；done 在淡出结束后回调
+    function bgmFadeTo(toVol, done){
+      var from = bgm.volume, start = performance.now(), token = ++bgmToken;
+      function step(now){
+        if(token !== bgmToken) return;                 // 已被新的淡变取消
+        var t = Math.min(1, (now - start) / BGM_FADE);
+        var e = t * t * (3 - 2 * t);                    // smoothstep
+        bgm.volume = from + (toVol - from) * e;
+        if(t < 1) requestAnimationFrame(step); else if(done) done();
+      }
+      requestAnimationFrame(step);
+    }
+    function bgmPlayWithFade(){
+      var p = bgm.play();
+      if(p && typeof p.catch === "function") p.catch(function(){});
+      bgmFadeTo(BGM_TARGET);
+    }
+    function bgmPauseWithFade(){ bgmFadeTo(0, function(){ bgm.pause(); }); }
+    function bgmToggle(){
+      if(bgmOn){ bgmOn = false; bgmPauseWithFade(); }
+      else { bgmOn = true; bgmPlayWithFade(); }
+    }
+
+    // 首次任意交互（捕获阶段，连按钮/导航等也不漏）即开始播放，避免「点进去没音乐」；
+    // 之后只有点空白处才切换开关，控件上的点击不抢页面自身功能。
+    var CONTROLS = "button, a, input, label, select, textarea, [role=button]";
+    var bgmStarted = false, bgmJustStarted = false;
+    function bgmStartOnce(){
+      if(bgmStarted) return;                 // 只首启一次
+      bgmStarted = true; bgmJustStarted = true;
+      bgmOn = true; bgmPlayWithFade();
+      document.removeEventListener("pointerdown", bgmStartOnce, true);
+      document.removeEventListener("keydown", bgmStartOnce, true);
+      document.removeEventListener("touchstart", bgmStartOnce, true);
+    }
+    // 捕获阶段兜底：任何按下 / 按键 / 触摸都先尝试开音乐
+    // （即使某按钮内部 stopPropagation 也能兜住，满足「点任意处都出声」）
+    document.addEventListener("pointerdown", bgmStartOnce, true);
+    document.addEventListener("keydown", bgmStartOnce, true);
+    document.addEventListener("touchstart", bgmStartOnce, true);
+    // 冒泡阶段：点空白处切换开关；首启那一次不误触发 toggle
+    document.addEventListener("click", function(e){
+      if(!bgmStarted) return;                // 首启交给捕获层处理
+      if(bgmJustStarted){ bgmJustStarted = false; return; }
+      if(e.target.closest && e.target.closest(CONTROLS)) return;  // 控件不切
+      bgmToggle();
+    });
+    // 尝试自动播放（本地打开 / 部分浏览器允许带声自动播放）
+    (function(){
+      var p = bgm.play();
+      if(p && typeof p.catch === "function"){
+        p.then(function(){ bgmOn = true; bgmStarted = true; bgmFadeTo(BGM_TARGET); })
+         .catch(function(){ /* 被拦截，等首次交互 */ });
+      }
+    })();
+  }
+})();
+</script>
+</body>
+</html>

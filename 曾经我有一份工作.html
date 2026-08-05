@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>曾经我有一份工作 · 舟行</title>
+<style>
+  :root{ --ink:#cfcfca; --red:#b01717; --bg:#050506; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);}
+  #cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;background:#000;display:block;}
+  .hidden{display:none!important;}
+  /* HUD */
+  #hud{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;
+    align-items:center;font-size:13px;letter-spacing:1px;pointer-events:none;
+    text-shadow:0 1px 3px #000;z-index:5;}
+  #floorTag{color:#9a9a93;}
+  #hint{color:#7d7d76;font-size:11px;max-width:60%;text-align:right;}
+  #broadcast{position:absolute;top:52px;left:50%;transform:translateX(-50%);max-width:86%;
+    text-align:center;color:#bcbcb4;font-size:13px;line-height:1.7;letter-spacing:1px;
+    background:rgba(0,0,0,.5);padding:8px 14px;border:1px solid #2a2a2a;border-radius:4px;
+    z-index:6;pointer-events:none;opacity:0;transition:opacity .6s;text-shadow:0 1px 3px #000;}
+  #broadcast.show{opacity:1;}
+  #prompt{position:absolute;left:50%;bottom:18%;transform:translateX(-50%);
+    color:var(--ink);font-size:14px;letter-spacing:2px;background:rgba(0,0,0,.55);
+    padding:8px 16px;border:1px solid #2a2a2a;border-radius:4px;text-shadow:0 1px 3px #000;z-index:6;pointer-events:none;}
+  /* door choice */
+  #choice{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    gap:14px;background:rgba(2,2,3,.78);z-index:8;text-align:center;padding:20px;}
+  #choice h3{color:var(--red);letter-spacing:4px;font-size:18px;margin:0 0 6px;}
+  #choice p{color:#9a9a93;font-size:12px;margin:0 0 8px;max-width:300px;line-height:1.8;}
+  .doorBtn{width:240px;max-width:78vw;padding:14px;border:1px solid #3a3a3a;background:#0c0c0e;color:var(--ink);
+    font-size:15px;letter-spacing:2px;border-radius:5px;cursor:pointer;transition:.15s;}
+  .doorBtn:active{background:#1a1a1c;}
+  .doorBtn small{display:block;color:#6f6f68;font-size:11px;letter-spacing:1px;margin-top:4px;}
+  /* overlays */
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    text-align:center;padding:28px;z-index:11;background:#000;}
+  .screen h1{color:var(--red);letter-spacing:8px;font-size:26px;margin:0 0 16px;}
+  .screen h2{color:var(--red);letter-spacing:6px;font-size:20px;margin:0 0 14px;}
+  .screen p{color:var(--ink);font-size:14px;line-height:2;max-width:560px;white-space:pre-wrap;}
+  .screen .btn{margin-top:22px;padding:12px 26px;border:1px solid #3a3a3a;background:#0c0c0e;color:var(--ink);
+    font-size:14px;letter-spacing:3px;border-radius:5px;cursor:pointer;}
+  .screen .btn:active{background:#1a1a1c;}
+  .corr{width:300px;max-width:74vw;height:auto;margin-bottom:6px;opacity:.92;}
+  /* mobile controls */
+  #stick{position:absolute;left:18px;bottom:20px;width:110px;height:110px;border-radius:50%;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);z-index:7;touch-action:none;display:none;}
+  #knob{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;
+    background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);}
+  #look{position:absolute;right:0;bottom:0;width:55%;height:60%;z-index:6;touch-action:none;}
+  #scan{position:absolute;inset:0;pointer-events:none;z-index:4;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply;}
+  #vig{position:absolute;inset:0;pointer-events:none;z-index:4;
+    box-shadow:inset 0 0 140px 40px rgba(0,0,0,.9);}
+  /* 设计说明 / 制作笔记 */
+  #notes{position:absolute;inset:0;background:#050506;z-index:20;display:flex;flex-direction:column;}
+  #notes .tabs{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-bottom:1px solid #1c1c1c;align-items:center;}
+  #notes .tabs button{background:#0c0c0e;color:#9a9a93;border:1px solid #2a2a2a;padding:7px 12px;font-size:12px;
+    letter-spacing:1px;border-radius:4px;cursor:pointer;}
+  #notes .tabs button.on{color:var(--ink);border-color:#5a1414;}
+  #notes .tabs button.close{margin-left:auto;border-color:#262626;color:#9a9a93;}
+  #notesPre{display:none;flex:1;overflow:auto;margin:0;padding:18px 22px;color:#b9b9b2;
+    font-family:"PingFang SC","Microsoft YaHei",ui-monospace,monospace;font-size:13px;line-height:1.75;
+    white-space:pre-wrap;word-break:break-word;}
+  #notesPre.show{display:block;}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="scan"></div>
+<div id="vig"></div>
+<div id="hud" class="hidden">
+  <span id="floorTag">第 1 层 / 共 5 层</span>
+  <span id="hint">方向键 / WASD 移动 · 拖动右侧屏幕转视角 · 走到尽头选门</span>
+</div>
+<div id="prompt" class="hidden"></div>
+<div id="broadcast"></div>
+
+<div id="choice" class="hidden">
+  <h3>走廊尽头</h3>
+  <p>两道门在你面前。你要去的那层，未必在这头。</p>
+  <div class="doorBtn" id="dBack">回望之门<small>退回你进来的入口</small></div>
+  <div class="doorBtn" id="dFwd">向前之门<small>前往走廊更深处</small></div>
+  <div class="doorBtn" id="dLook" style="border-color:#262626;color:#7d7d76;">再看看</div>
+</div>
+
+<div id="start" class="screen">
+  <h1>曾经我有一份工作</h1>
+  <p>你拿着一封面试通知，走进一栋不该存在的楼。<br>第一层很正常——记住它的样子。<br>后面几层，未必。<br><br>（建议戴耳机。第一人称视角，方向键 / WASD 移动，拖动屏幕转头。）</p>
+  <div class="btn" id="begin">走进楼里</div>
+  <div class="btn" id="openNotes" style="margin-top:12px;border-color:#262626;color:#9a9a93;font-size:13px;">设计说明 / 制作笔记</div>
+</div>
+
+<div id="end" class="screen hidden"></div>
+
+<script>
+/* ============ 音频（合成，零素材） ============ */
+var AC=null, droneNodes=[];
+function initAudio(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+function startDrone(){ if(!AC)return; stopDrone();
+  [46,53].forEach(function(f){ var o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine'; o.frequency.value=f; g.gain.value=0.05; o.connect(g); g.connect(AC.destination); o.start();
+    droneNodes.push(o); droneNodes.push(g); }); }
+function stopDrone(){ if(!AC)return; droneNodes.forEach(function(n){ try{n.stop&&n.stop();}catch(e){} try{n.disconnect();}catch(e){} }); droneNodes=[]; }
+function blip(f){ if(!AC)return; try{ var o=AC.createOscillator(),g=AC.createGain();
+    o.type='square'; o.frequency.value=f; g.gain.value=0.04; o.connect(g); g.connect(AC.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.1); o.stop(AC.currentTime+0.12); }catch(e){} }
+function playThud(){ if(!AC)return; try{
+    var o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(92,AC.currentTime);
+    o.frequency.exponentialRampToValueAtTime(24,AC.currentTime+0.5);
+    g.gain.value=0.5; o.connect(g); g.connect(AC.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.9); o.stop(AC.currentTime+1.0);
+    var nb=AC.createBuffer(1,Math.floor(AC.sampleRate*0.6),AC.sampleRate), d=nb.getChannelData(0);
+    for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    var ns=AC.createBufferSource(); ns.buffer=nb;
+    var nf=AC.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=190;
+    var ng=AC.createGain(); ng.gain.value=0.28; ns.connect(nf); nf.connect(ng); ng.connect(AC.destination); ns.start();
+  }catch(e){} }
+
+/* ============ 冷酷广播（你填的 HR 画饼，逐字浮现） ============ */
+var bcTimer=null;
+function showBroadcast(floor){
+  var txt=FLOOR_BROADCAST[floor]; if(!txt) return;
+  var b=document.getElementById('broadcast');
+  b.classList.add('show'); b.textContent='';
+  var i=0; clearInterval(bcTimer);
+  bcTimer=setInterval(function(){
+    b.textContent=txt.slice(0,++i);
+    if(i>=txt.length){ clearInterval(bcTimer);
+      setTimeout(function(){ b.classList.remove('show'); }, 4200); }
+  }, 42);
+}
+
+/* ============ 地图（每层同构，走廊） ============ */
+var MAP=[
+  "######################",
+  "#....................#",
+  "######################"
+];
+function isWall(x,y){ var mx=Math.floor(x),my=Math.floor(y);
+  if(my<0||my>=MAP.length||mx<0||mx>=MAP[0].length) return true;
+  return MAP[my][mx]==='#'; }
+
+/* ============ 状态 ============ */
+var RW=360, RH=200;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var buf=document.createElement('canvas'); buf.width=RW; buf.height=RH; var bctx=buf.getContext('2d');
+var player={x:1.5,y:1.5,ang:0,floor:1};
+var anomaly={};            // 每层是否异常（2-5 层 50% 概率）
+var ANOM_POS={x:10,y:1};   // 异常物位置（走廊中段，玩家必经之路；仅异常层出现）
+var insights=0;             // 正确识别异常的次数（揭开迷雾的层数）
+var anomalyKind={};         // 每层异常物形态：2海报/3门/4人形/5聚合
+// 你填的「冷酷广播」——HR 画大饼，绝不提真实待遇
+var FLOOR_BROADCAST={
+ 2:"【招聘广告】改变人生的机会，创造财富，迈上巅峰，取得辉煌成就。",
+ 3:"【兼职信息】一天、一周只要工作三四天，日薪一至两百，很好干的。",
+ 4:"【HR 留言】我们是个大家庭。先认同文化，别的以后再说。具体的，你来了就懂。",
+ 5:"【系统】公司即为最高。人生的财富，都是公司创造的。你，本就属于这里。"
+};
+var state={ended:false,inChoice:false,choiceArmed:true,started:false};
+var played=false;
+try{ played = localStorage.getItem('pt_played')==='1'; }catch(e){}
+
+function rollFloor(f){
+  if(f===1){ anomaly[f]=false; return; }
+  anomaly[f] = Math.random()<0.5;
+  anomalyKind[f] = {2:'poster',3:'door',4:'figure',5:'mass'}[f];
+}
+function enterFloor(f){
+  player.floor=f; player.x=1.5; player.y=1.5; player.ang=0;
+  rollFloor(f);
+  state.inChoice=false; state.choiceArmed=true;
+  updateHUD();
+  if(f>=2) showBroadcast(f);
+}
+function updateHUD(){
+  var ft=document.getElementById('floorTag');
+  ft.textContent='第 '+player.floor+' 层 / 共 5 层';
+}
+
+/* ============ 输入 ============ */
+var keys={};
+window.addEventListener('keydown',function(e){ keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key)>=0) e.preventDefault(); });
+window.addEventListener('keyup',function(e){ keys[e.key]=false; });
+
+var mvF=0, mvR=0, turnIn=0;   // 前后 / 左右平移 / 转向
+// 键盘
+function readKeys(){
+  mvF=0; mvR=0; turnIn=0;
+  if(keys['w']||keys['W']||keys['ArrowUp']) mvF+=1;
+  if(keys['s']||keys['S']||keys['ArrowDown']) mvF-=1;
+  if(keys['d']||keys['D']) mvR+=1;
+  if(keys['a']||keys['A']) mvR-=1;
+  if(keys['ArrowLeft']) turnIn-=1;
+  if(keys['ArrowRight']) turnIn+=1;
+}
+// 触屏摇杆
+var stick=document.getElementById('stick'), knob=document.getElementById('knob');
+var stickId=null, stickCX=0, stickCY=0;
+var look=document.getElementById('look');
+var lookId=null, lookLX=0;
+function isTouch(){ return ('ontouchstart' in window) || navigator.maxTouchPoints>0; }
+if(isTouch()){
+  stick.style.display='block';
+  stick.addEventListener('touchstart',function(e){ e.preventDefault();
+    var r=stick.getBoundingClientRect(); stickCX=r.left+r.width/2; stickCY=r.top+r.height/2;
+    stickId=e.changedTouches[0].identifier; moveStick(e.changedTouches[0]); },{passive:false});
+  stick.addEventListener('touchmove',function(e){ e.preventDefault();
+    for(var i=0;i<e.changedTouches.length;i++) if(e.changedTouches[i].identifier===stickId) moveStick(e.changedTouches[i]); },{passive:false});
+  stick.addEventListener('touchend',function(e){ e.preventDefault(); stickId=null; mvF=0; mvR=0; knob.style.left='35px'; knob.style.top='35px'; },{passive:false});
+}
+function moveStick(t){
+  var dx=t.clientX-stickCX, dy=t.clientY-stickCY, r=46;
+  var d=Math.hypot(dx,dy); if(d>r){ dx=dx/d*r; dy=dy/d*r; }
+  knob.style.left=(35+dx)+'px'; knob.style.top=(35+dy)+'px';
+  mvF=-dy/r; mvR=dx/r;
+}
+if(isTouch()){
+  look.addEventListener('touchstart',function(e){ e.preventDefault(); if(e.changedTouches[0]){ lookId=e.changedTouches[0].identifier; lookLX=e.changedTouches[0].clientX; } },{passive:false});
+  look.addEventListener('touchmove',function(e){ e.preventDefault();
+    for(var i=0;i<e.changedTouches.length;i++){ var t=e.changedTouches[i];
+      if(t.identifier===lookId){ var dx=t.clientX-lookLX; player.ang+=dx*0.005; lookLX=t.clientX; } } },{passive:false});
+  look.addEventListener('touchend',function(e){ e.preventDefault(); lookId=null; },{passive:false});
+}
+// 桌面鼠标拖动看
+var mDrag=false, mLastX=0;
+cv.addEventListener('mousedown',function(e){ mDrag=true; mLastX=e.clientX; });
+window.addEventListener('mousemove',function(e){ if(mDrag){ player.ang+=(e.clientX-mLastX)*0.005; mLastX=e.clientX; } });
+window.addEventListener('mouseup',function(){ mDrag=false; });
+
+/* ============ 渲染（光线投射） ============ */
+function render(){
+  var FOV=Math.PI/3, half=FOV/2;
+  var dirX=Math.cos(player.ang), dirY=Math.sin(player.ang);
+  var planeX=-Math.sin(player.ang)*Math.tan(half), planeY=Math.cos(player.ang)*Math.tan(half);
+  var anom=anomaly[player.floor];
+  var t=Date.now()/1000;
+  var flick=anom ? (0.75+0.25*Math.sin(t*9)) : 1;
+  // 天花板 / 地板
+  bctx.fillStyle = anom ? 'rgb('+Math.floor(40*flick)+',0,0)' : 'rgb(10,10,12)';
+  bctx.fillRect(0,0,RW,RH/2);
+  bctx.fillStyle = anom ? 'rgb('+Math.floor(28*flick)+',0,0)' : 'rgb(8,8,10)';
+  bctx.fillRect(0,RH/2,RW,RH/2);
+
+  var zbuf=new Array(RW);
+  for(var x=0;x<RW;x++){
+    var cameraX=2*x/RW-1;
+    var rayX=dirX+planeX*cameraX, rayY=dirY+planeY*cameraX;
+    var mapX=Math.floor(player.x), mapY=Math.floor(player.y);
+    var dX=Math.abs(1/rayX), dY=Math.abs(1/rayY);
+    var stepX,stepY,sdx,sdy;
+    if(rayX<0){ stepX=-1; sdx=(player.x-mapX)*dX; } else { stepX=1; sdx=(mapX+1-player.x)*dX; }
+    if(rayY<0){ stepY=-1; sdy=(player.y-mapY)*dY; } else { stepY=1; sdy=(mapY+1-player.y)*dY; }
+    var hit=0,side=0,guard=0;
+    while(hit===0 && guard<80){
+      if(sdx<sdy){ sdx+=dX; mapX+=stepX; side=0; } else { sdy+=dY; mapY+=stepY; side=1; }
+      if(MAP[mapY] && MAP[mapY][mapX]==='#') hit=1; guard++;
+    }
+    var perp = side===0 ? (sdx-dX) : (sdy-dY);
+    if(perp<0.02) perp=0.02;
+    zbuf[x]=perp;
+    var lineH=Math.floor(RH/perp);
+    var y0=Math.floor(-lineH/2+RH/2), y1=Math.floor(lineH/2+RH/2);
+    if(y0<0)y0=0; if(y1>RH)y1=RH;
+    var lum=Math.max(8, (side===1?64:96) - perp*7);
+    var col;
+    if(anom){ col='rgb('+Math.floor(lum*1.45*flick)+','+Math.floor(lum*0.16)+','+Math.floor(lum*0.16)+')'; }
+    else { col='rgb('+Math.floor(lum)+','+Math.floor(lum)+','+Math.floor(lum*1.12)+')'; }
+    bctx.fillStyle=col; bctx.fillRect(x,y0,1,y1-y0);
+  }
+  // 异常物（精灵）：形态随楼层概念变化
+  if(anom) drawSprite(ANOM_POS.x,ANOM_POS.y,zbuf,dirX,dirY,planeX,planeY,flick, anomalyKind[player.floor]);
+  // 缩放到屏幕
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(buf,0,0,RW,RH,0,0,cv.width,cv.height);
+}
+function drawSprite(sx,sy,zbuf,dirX,dirY,planeX,planeY,flick,shape){
+  var dx=sx-player.x, dy=sy-player.y;
+  var invDet=1/(planeX*dirY - dirX*planeY);
+  var tx=invDet*(dirY*dx - dirX*dy);
+  var tz=invDet*(-planeY*dx + planeX*dy);
+  if(tz<=0.1) return;
+  var screenX=Math.floor((RW/2)*(1+tx/tz));
+  var size=Math.abs(Math.floor(RH/tz*0.95));
+  if(size<3) size=3;
+  var h=size, wf=0.7;
+  if(shape==='poster') wf=0.36;        // 2F 招聘广告/简历/来电：瘦长海报
+  else if(shape==='door') wf=1.0;      // 3F 门：宽门
+  else if(shape==='figure') wf=0.52;   // 4F 异化的人：窄人形
+  else if(shape==='mass') wf=1.4;      // 5F 聚合：膨胀物
+  var w=Math.floor(size*wf);
+  var x0=screenX-w/2, x1=screenX+w/2, yTop=Math.floor(RH/2-h/2), yBot=Math.floor(RH/2+h/2);
+  for(var x=x0;x<x1;x++){
+    if(x<0||x>=RW) continue;
+    if(tz>=zbuf[x]) continue;           // 被墙挡住
+    var cxp=(x-x0)/w;                   // 0..1 横向
+    var edge=Math.abs(cxp-0.5);
+    var a=Math.max(0,1-edge*2.2);
+    var col;
+    if(shape==='poster'){
+      if(edge<0.10) col='rgba(135,12,12,'+a+')';                                   // 红框
+      else { var st=Math.sin(cxp*38)>0?1:0; col='rgba('+(55+st*45)+',0,0,'+(a*0.92)+')'; } // 内竖条（简历/来电）
+    } else if(shape==='door'){
+      col='rgba(38,0,0,'+(a*0.96)+')';
+      if(edge<0.015) col='rgba(0,0,0,'+a+')';                                       // 门缝
+    } else if(shape==='figure'){
+      if(edge<0.16) col='rgba('+Math.floor(162*flick)+',0,0,'+a+')';                // 亮红边缘（人形）
+      else if(edge<0.23) col='rgba(60,0,0,'+(a*0.85)+')';
+      else col='rgba(15,0,0,'+(a*0.55)+')';
+    } else { // mass
+      col='rgba('+Math.floor(85+55*flick)+',0,0,'+(a*(0.82+0.18*Math.sin(tz*2.5)))+')';
+    }
+    bctx.fillStyle=col; bctx.fillRect(x,yTop,1,yBot-yTop);
+  }
+}
+
+/* ============ 主循环 ============ */
+var last=0;
+function loop(ts){
+  if(!state.started||state.ended){ requestAnimationFrame(loop); return; }
+  var dt=(last? (ts-last):16)/1000; last=ts; if(dt>0.05)dt=0.05;
+  if(!state.inChoice){
+    readKeys();
+    // 触屏摇杆已写入 mvF/mvR
+    var sp=2.2*dt;
+    var fx=Math.cos(player.ang), fy=Math.sin(player.ang);
+    var rx=-Math.sin(player.ang), ry=Math.cos(player.ang);
+    var vx=(fx*mvF + rx*mvR)*sp, vy=(fy*mvF + ry*mvR)*sp;
+    var nx=player.x+vx, ny=player.y+vy;
+    if(!isWall(nx,player.y)) player.x=nx;
+    if(!isWall(player.x,ny)) player.y=ny;
+    player.ang += turnIn*1.8*dt;
+    // 末端触发选门（走廊已拉长，玩家必经异常物 ANOM_POS.x=10）
+    if(player.x>19.0 && state.choiceArmed){ showChoice(); }
+    // 靠近异常物的中性提示
+    var pr=document.getElementById('prompt');
+    if(anomaly[player.floor]){
+      var d=Math.hypot(player.x-ANOM_POS.x, player.y-ANOM_POS.y);
+      if(d<2.4){ pr.classList.remove('hidden'); pr.textContent='（这里，有什么东西）'; } else { pr.classList.add('hidden'); }
+    } else { pr.classList.add('hidden'); }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ============ 选门 ============ */
+function showChoice(){
+  state.inChoice=true; state.choiceArmed=false;
+  var c=document.getElementById('choice'); c.classList.remove('hidden');
+  blip(330);
+}
+function hideChoice(){ var c=document.getElementById('choice'); c.classList.add('hidden'); }
+document.getElementById('dLook').onclick=function(){ state.inChoice=false; hideChoice(); };
+document.getElementById('dBack').onclick=function(){ resolveChoice('back'); };
+document.getElementById('dFwd').onclick=function(){ resolveChoice('fwd'); };
+function resolveChoice(choice){
+  hideChoice();
+  var anom=anomaly[player.floor];
+  var correct = (anom && choice==='back') || (!anom && choice==='fwd');
+  if(correct){
+    if(anom) insights++;   // 看清了这一层的异样 → 揭开一层迷雾
+    blip(520);
+    if(player.floor>=5){ endGame(); return; }
+    fadeTo(function(){ enterFloor(player.floor+1); }, '你选对了。走廊向上延伸……');
+  } else {
+    blip(140);
+    fadeTo(function(){ enterFloor(1); }, '你选错了。走廊重新开始。\n（这一层，本就不该向前。）');
+  }
+}
+function fadeTo(fn,msg){
+  document.getElementById('broadcast').classList.remove('show');
+  var p=document.getElementById('prompt'); p.classList.remove('hidden'); p.textContent=msg;
+  setTimeout(function(){ p.classList.add('hidden'); fn(); }, 1100);
+}
+
+/* ============ 结局 ============ */
+function endGame(){
+  state.ended=true; stopDrone(); playThud();
+  document.getElementById('broadcast').classList.remove('show');
+  try{ localStorage.setItem('pt_played','1'); }catch(e){}
+  var black=document.getElementById('end');
+  black.classList.remove('hidden'); black.style.background='#000'; black.innerHTML='';
+  setTimeout(function(){
+    var sv='<svg class="corr" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">'
+      +'<defs><radialGradient id="cg" cx="50%" cy="50%" r="55%">'
+      +'<stop offset="0%" stop-color="#3a0d0d"/><stop offset="100%" stop-color="#000"/></radialGradient></defs>'
+      +'<polygon points="0,0 400,0 300,70 100,70" fill="#0a0b0d"/>'
+      +'<polygon points="0,200 400,200 300,130 100,130" fill="#0a0b0d"/>'
+      +'<polygon points="0,0 0,200 100,130 100,70" fill="#0a0b0d"/>'
+      +'<polygon points="400,0 400,200 300,130 300,70" fill="#0a0b0d"/>'
+      +'<rect x="100" y="70" width="200" height="60" fill="url(#cg)"/>'
+      +'<rect x="182" y="82" width="36" height="36" fill="#161616" stroke="#7a1414"/>'
+      +'<text x="200" y="105" fill="#5a0f0f" font-size="11" text-anchor="middle" font-family="monospace">307</text>'
+      +'</svg>';
+    // 结算：你填的「云散开，露出自己，语气茫然」
+    var ins=insights, settle;
+    if(ins<=0)      settle='你一层层走了下来，却什么也没看清。\n迷雾没有散。\n走廊尽头，还是走廊。\n你甚至不记得，自己来做什么。';
+    else if(ins<=2) settle='你隐约觉得，有些层不对劲，\n可又说不上来是哪。\n迷雾散开一点，\n镜子里的人，一脸茫然。';
+    else if(ins<=4) settle='你认出了大部分异样。\n迷雾在退，\n镜子里的人，开始像你了。';
+    else            settle='你看清了每一层的异样。\n迷雾散尽——\n镜子里站着的，是你自己。\n你终于想起：你是来找工作的，\n也是来找自己的。';
+    settle+='\n\n不要温和地走进那个良夜。\n去推你的门——\n别让自己，停在任何一层。';
+    var body=settle;
+    if(played){ body='你又走到了这里。\n走廊记得你。\n\n'+settle; }
+    black.style.background='#000';
+    black.innerHTML='<h2>门后 · 更长的走廊</h2>'+sv+'<p>'+body+'</p><div class="btn" id="again">再走一次</div>';
+    document.getElementById('again').onclick=function(){ location.reload(); };
+  }, 950);
+}
+
+/* ============ 启动 ============ */
+function resize(){ cv.width=window.innerWidth; cv.height=window.innerHeight; }
+window.addEventListener('resize',resize); resize();
+document.getElementById('begin').onclick=function(){
+  insights=0;
+  initAudio(); startDrone();
+  document.getElementById('start').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  state.started=true; enterFloor(1);
+  if(played){ var p=document.getElementById('prompt'); p.classList.remove('hidden');
+    p.textContent='（你上周也来过这里。走廊认得你。）';
+    setTimeout(function(){ p.classList.add('hidden'); }, 2600); }
+  requestAnimationFrame(loop);
+};
+/* ============ 设计说明 / 制作笔记（整合所有文档，零外部依赖） ============ */
+(function(){
+  var nb=document.querySelectorAll('#notes .tabs button[data-n]');
+  function switchNote(n){
+    for(var i=0;i<nb.length;i++){ nb[i].classList.toggle('on', i==n);
+      var p=document.getElementById('note'+i); if(p) p.classList.toggle('show', i==n); }
+  }
+  for(var i=0;i<nb.length;i++){ (function(b,idx){ b.onclick=function(){ switchNote(idx); }; })(nb[i],i); }
+  var on=document.getElementById('openNotes'); if(on) on.onclick=function(){
+    document.getElementById('start').classList.add('hidden');
+    document.getElementById('notes').classList.remove('hidden');
+  };
+  var cn=document.getElementById('closeNotes'); if(cn) cn.onclick=function(){
+    document.getElementById('notes').classList.add('hidden');
+    document.getElementById('start').classList.remove('hidden');
+  };
+})();
+</script>
+<div id="notes" class="hidden">
+  <div class="tabs">
+    <button data-n="0" class="on">设计一页纸</button>
+    <button data-n="1">设计大纲（原稿）</button>
+    <button data-n="2">v4 设计依据</button>
+    <button data-n="3">v5 设计依据</button>
+    <button class="close" id="closeNotes">返回游戏</button>
+  </div>
+<pre id="note0" class="notesPre show"># 《曾经我有一份工作》— 面试恐怖网页小游戏 · 设计一页纸 + 素材扫描
+
+> 状态：v1 原型已出（同目录 `曾经我有一份工作.html`）。本文档为设计依据与素材索引。
+> 路线：单文件 HTML（HTML+CSS+JS，Web Audio 合成音效，CSS jumpscare，零外部素材零后端）。
+> 基调：恐怖 / 认知失调 / 桀桀。你以为是人在面你，其实是 AI。
+
+---
+
+## 一、素材可用度扫描（来源：第三周小组会议记录）
+
+会议主题《AI 面试官对比与求职盲区复盘研讨会》天然自带"识破 AI"的线索库，游戏化价值极高。
+
+### A. 线索库（= 玩家要收集的"破绽"，直接来自会议"AI 与人类差异"一节）
+| 编号 | 破绽（游戏内线索） | 会议原文出处 |
+|---|---|---|
+| c1 | 非言语缺失：语速匀速、无眼神、无临场感 | "AI 无法捕捉临场感、语速、眼神、默契" |
+| c2 | 评价缺温度：措辞锐利、直接下判 | "AI 评价过于锐利尖锐，缺乏温度" |
+| c3 | 说的好=做的好：把表达力等同能力 | "AI 倾向将表达能力直接等同能力" |
+| c4 | 缺乏深度追问：只贴'领导力'标签不挖细节 | "不会针对具体事件追问细节" |
+| c5 | 缺乏语境理解：把'盲蛋空心'网络梗当真词 | "候选人提到'盲蛋空心'，AI 识别为真实词汇" |
+| c6 | 负面证据放大：练字三个月被判'不坚持' | "高中练字三个月未坚持，AI 视为重大缺陷" |
+| c7 | 缺乏价值判断：引用媒体观点当独立思考 | "引用主流媒体观点，AI 直接认可其思考力" |
+
+### B. 剧情素材（= 面试案例 / 彩蛋）
+- **打码案例**："100%点赞率""1500家企业" → 打码成"3000个文化活动"。游戏化：玩家在简历窗口发现数据被改，是恐怖彩蛋。
+- **真实经历案例**：健身瘦身20斤（行为链可信）、企业接待冲突（领导力）、提升英语成绩、应对拖延方法论。可作"候选人讲的经历"，玩家判断真假。
+- **养鱼/放鸽子/黑名单**：会议结尾小刚&Lola 讨论 → 直接用作 bad end 文案。
+
+### C. 现成文案（= 游戏台词/标题）
+- 标题候选：**《曾经我有一份工作》**（会议原话"人机大战/曾经我有一份工作"主题方向）。
+- 梗："盲蛋空心"。
+- 温情碎片（真结局反转用）："露娜没有你我可怎么办，我确实又忘记截图了"；"依然有19位同学坚持…完结撒花"。
+- 金句："假如说你们其实 HR 被候选人割了"。
+
+### D. 结构映射（会议时间线 → 关卡）
+00:10 AI差异 → 轮次1（非言语/温度）；00:32 求职盲区 → 轮次2（语境/追问）；01:19 路演形式 → 轮次3（负面放大/价值判断）；02:05 结束 → 真相结局。
+
+---
+
+## 二、锁定设计（恐怖向 = "反过来"）
+
+**玩家视角**：你是求职者，来参加一场面试。屏幕对面的"面试官"谈吐温和、记得你名字、会聊闲天——你以为是个真人 HR。
+**恐怖反转**：随着对话推进，你发现对方语速永远匀速、把网络梗当真词、对你高中小事大做文章、把你引用的公众号观点当独立思考、从不对你的故事做具体追问……**对面根本不是人，是 AI 面试官**。最冷的是：你为了通过，一直对着机器表演"人味"。
+
+**通关 = 凑齐关键信息 + 走完叙事**：3 轮对话里收集 ≥4 条破绽线索 → 触发真结局（你识破并选择回应）。
+**失败/重试**：忽略破绽/选错 → 异常值仪表上涨（屏幕渗红、面试官头像像素化抖动、文字扭曲）；满 → jumpscare + bad end（被淘汰/拉黑），可重试该轮，分支不同。
+
+**呈现（混合）**：
+- 主区：Paper Please 式"面试面板"——面试官档案卡（姓名/职位/可疑指标）、你的简历卡、对话转写块、右侧"如何识破 AI"提示（随进度解锁）。
+- 侧/底区：互动小说式内心独白 + 选项（回应/追问/指出破绽/沉默）。
+- 顶栏：异常值仪表 + 破绽进度（X/7）+ 轮次进度。
+
+**5 分钟节奏**：开场(坐下寒暄 30s) → 轮次1–3(各~60s) → 集齐线索 → 真相结局(30–40s)。错太多走 bad end。
+
+**技术**：HTML+CSS+JS 单文件；Web Audio 合成点击/环境嗡鸣/尖叫；CSS 动画做 jumpscare 与崩坏；零外部素材、零后端，双击即开。
+
+---
+
+## 三、阶段进度
+- [x] 阶段1 素材扫描（本文件）
+- [x] 阶段2 设计锁定（反向：你以为是人在面你，其实是 AI）
+- [x] 阶段4 v1 互动小说原型（**已被 v2 取代**）
+- [x] **v2 实装：PT 式俯视像素循环走廊**（已写入 `曾经我有一份工作.html`，JS 语法校验通过）
+  - 3 圈循环：走廊每圈微变（温馨 → 拒信墙 → 黑名单墙 + ghost👁）
+  - 广播递进：圈1「到时候联系」(用户真实经历①) / 圈2「周五过去了没人来」(经历②) / 圈3 系统真相「你以为在面人，其实是 AI 筛你」+ 关键句「它比 HR 还懂怎么让人留下」
+  - 墙上可读字呈现矛盾心理：「继续投别家？可如果这家突然要你，怎么跟下一家交代？」
+  - 第三圈门后留悬念：「门后没有人。或者，门后是你。」
+  - 技术：Canvas 像素 + Web Audio 低频嗡鸣 + 广播噪声 + localStorage 跨周目「你又来了」
+- [x] **v2.1 精修（用户反馈：标语无逻辑、走廊太空；新增锚点「来找面试地址」）** JS 语法校验通过
+  - 场景动机锚定：玩家=拿着通知找「星海大厦 3 楼 307」的面试者，走不出去的回廊=永远到不了面试间
+  - 走廊拉长成 L 形长回廊（竖段 c3-4 r1-14 + 横段 r14 c4-21 + 门 c21r14），加**手电暗角**（径向渐变黑遮罩，只照亮脚下）
+  - 墙上标语改为**有逻辑的「面试地址指引牌」异化线**：圈1「→307（3楼）」/ 圈2「307已取消请去B2」+ 矛盾心理字 / 圈3「面试地址：你脚下」+ 黑名单+打码彩蛋
+  - 门牌号随圈变化（307 → B2 → ?），强化地址异化
+  - 鬼影提前到圈2（走廊中部微兆），圈3 门边明显闪烁
+  - 广播加**打字机逐字渐显**（18ms/字），冷意慢渗
+  - 结局重写接住矛盾心理：门后=镜子（你）+ 亮着的两家未读消息（A二面等周五/B到时候联系），卡在「继续投还是等」
+- [x] **v2.2 重构：5 层分支 + 像素人形鬼影 + 移动端摇杆**（用户明确执行指令，JS 校验通过）
+  - 结构：5 层（原 3 圈）。**第 1 层无异常**（纯正常 307 指引）；第 2–5 层异常逐层加重，并制造「我是不是走错了」空间困惑（decor 字：这层楼梯和刚才一样 / 你回头来路没了 / 楼层牌跳过了4 / 你下楼那扇门还在身后）。
+  - 门处二选一分支：**第 1 层单按钮「上楼→2F」**；第 2–4 层「原路返回（一定是我开门的姿势不对）/ 继续下一层」；第 5 层「返回 4F / 推开第 5 层的门」。可来回上下楼。
+  - 结局按选择历史分支：一路向下直达 5F（未返回）→「门后·顶楼」镜子+两家未读消息矛盾心理结局；中途返回过 →「门后·还是走廊」无限回廊+「一定是我开门的姿势不对」循环结局。
+  - 鬼影👁 换成**像素人形**（drawWraith 方块组合：头/破烂身/裂口/空洞眼），floor2 远处微兆→floor5 守门口明显。
+  - 加**移动端屏幕摇杆**（左下圆+knob，touch 事件，@media pointer:coarse 显示，桌面隐藏），门处 DOM 按钮触摸友好。
+  - 异常方向按用户选定「我是不是走错了」= 空间困惑，而非纯惊悚。
+- [x] **v3 重做（用户指令：哲学化、抛开会议内容、补「找异常」游戏逻辑、隐喻不出现在地图）** JS 语法校验通过
+  - **剥离全部会议具体梗**（盲蛋空心 / 1500家→3000文化活动 / 拉黑养鱼 / 二面周五等台词已删除，广播与结局改成纯氛围+循环感）。
+  - **新核心循环 = 找异常**：每层 2–5 藏 1 个「不对劲」物件（2F 虚掩的门 / 3F 无指针的钟 / 4F 挂反的画 / 5F 指向深处的 EXIT 牌）。靠近按「审视/E」细看 → 标记本层已看清；**未看清就选「继续下一层」，门推不开、仍在原层（循环=没看清走不出去）**。返回过的层若已看清则可直接走。
+  - **哲学隐喻只埋进结构与怪物行为，地图文字不点破**：5 层一模一样的回廊=西西弗式无意义重复；追逐者=「看不清」时逼近、「看清」一处异常就退回去并眩晕（隐喻：看清了，恐惧就退了）；魔女之家式结局=门后是更长的、一模一样的走廊（迷宫在内部）。
+  - 结局文案改为存在主义留白（走是又一圈 / 留是原地 / 也许没有 307），依「是否返回过」分支 + 依「找到异常数」加一句自省。
+  - 保留：5 层 / 第1层无异常 / 门处二选一 / 像素人形追逐+碰到即死 / 手机摇杆 / 黑屏+低频闷响→淡入魔女之家走廊 / localStorage 跨周目记仇（pt_played / pt_caught / pt_found）。
+</pre>
+<pre id="note1" class="notesPre"># 《曾经我有一份工作》游戏设计大纲 · 你来填
+
+> 舟行，之前几版都是我替你做决定、你用"补丁"改，方向反复横跳、你也越来越烦。
+> 这次反过来：**已定的锁死，空白的你填**。你填完发我，我再照你的骨架写代码——一次到位，不再猜。
+> 每个板块下「引导思考」帮你把模糊念头显性化。`例：` 后面不是答案，是帮你起念的钩子，可整段替换。
+
+---
+
+## 〇、已锁定的设计决策（你之前拍板的，不用再想）
+
+- **视角**：俯视像素，Canvas 手绘方块 sprite，零图片素材、零后端
+- **结构**：5 层 L 形回廊，第 1 层无异常，2–5 层各有异常
+- **门逻辑**：每层门处二选一（原路返回 / 继续下一层），可上下楼；第 5 层推门触发结局
+- **核心通关逻辑**：每层藏 1 个"不对劲"物件，不"审视看清"就推不开门、困在循环里
+- **怪物**：像素人形，主动追逐、碰到即死；你"看清"一处异常它后退并眩晕
+- **结局**：黑屏 + 低频闷响 → 淡入魔女之家式「更长的、一模一样的走廊」
+- **移动端**：手机摇杆
+- **音频**：Web Audio 合成低频环境音 + 广播噪声，可静音
+- **情绪锚点（你选的）**：**「我是不是走错了」**＝空间困惑
+- **哲学要求**：隐喻只埋进怪物行为 / 场景结构，**绝不出现在地图文字里**
+
+---
+
+## 一、一句话设定（你来填）
+
+玩家是一个人，在扫楼寻找面试/工作机会，表面目标是找工作，但真正发生的是环境的改变和显示的阻碍导致的行动路线的不稳定和精神的衰弱。
+
+**引导思考**
+- 如果剥掉"求职 / 面试"外壳，你想表达的**核心困境**一句话是受限于资源获取困难，人往往无法从自己的行为定式里面跳脱出来。
+- 这个困境，是我自己的，也是普遍人性的。
+
+---
+
+## 二、五个异常物件（你来填概念，别写具体生活梗）
+
+每层一个"不对劲"，合起来应是一个**递进**——越往后越指向"自己"而非"环境"。
+
+- **2F 异常物件**：父母的来电，自己的简历，公司的招聘广告｜ 它隐喻：我们在去求职的时候，我们心里是什么推动我们去求职的？______
+- **3F 异常物件**：左栏两边变化的门有些可能是开的，有些可能是关的。你需要设计一个楼层，比如说在某一层，比如第一层。
+
+一般我们是不设置异常点的，但在第一层需要进行确认：
+1. 门保持什么样的状态；
+2. 门后有没有东西冒出来。
+
+如果第一层是正常的，比如这个门应该是关上的，但如果处于异常状态，那么观察状态就会不一样。｜ 它隐喻：被拒之门外的无数次求职的经历______
+- **4F 异常物件**：第四层的话，我想设置的是灯光。
+
+如果第一层的灯光是明亮的、正常的，因为你是要到那个写字楼里面找面试的地方，或者要扫楼找求职机会。
+
+那么，首先这个写字楼正常来说，走廊上应该会有人穿着白衬衫走来走去之类的。如果我们发现异常的话，那就肯定要么人是异常的，要么他走的方式、走的方向或者行动的模式也是异常的。灯光如果异常，比如从白色亮光变成了暗红或者暗色，带有危险的冷光，就会产生这样的变化。｜ 它隐喻：求职过程中偶尔会遇见的被骗经历，那些看似美好但实则危机四伏的工作机会，或者说相当于被诈骗了。所以用光怪陆离的灯光来隐喻这一层。______
+- **5F 异常物件**：这一层的异常物件就是前面那些组合起来，可能有也可能没有。那么就需要玩家来判断：
+
+1. 如果有异常的话，那肯定是原路返回，然后到下一层。
+2. 如果没有的话，那就是直接开门，然后到下一层。
+
+但如果他有异常，然后他还是继续到下一层（也就是说他不是选择返回，而是选择继续下一层的话），那么他会被强制传送到一楼，然后要重新来走这些楼道。
+
+那么每一层的话，它要是还是按照刚刚的逻辑：
+
+1. 这个楼道里面如果没有异常的话，那么他就要选择继续下一层。
+2. 如果有异常呢，就需要返回。
+
+那么他每次的选项肯定都是导向那个，如果正确选择了的话，都是可以倒向下一层的；但如果错误选择了，比如说有异常的情况下还是选择继续下一层，那么他就会被传送到一楼。______ ｜ 它隐喻：平时会说，当你要确认你人生的某一件可以影响你人生的大事的时候，你一定要综合你的各方面来考虑。
+
+虽然说，哪怕当时的你做出的选择不是最适合你的，或者不是最正确的选择，但是你也是按照你的心来行动。在这个过程中，你的心也会逐渐明白：
+1. 哪一些东西是危险的；
+2. 哪一些东西对自己是好的、自己喜欢的。
+
+这样就可以完善自己的心。______
+
+**引导思考**
+- 这 4 个物件如果是「一个人越来越看清自己处境」的 4 个阶段，分别是
+- 2F 一扇本不该开的门（你以为能走捷径）/ 3F 一只停了的钟（时间感丧失）/ 4F 一幅挂反的画（视角颠倒）/ 5F 一个指向深处的 EXIT（出口即陷阱）。
+
+---
+
+## 三、怪物的隐喻（你来填）
+
+怪物代表：在社会中被工作异化的人，还有那些在竞争中迷失自我的人。它为什么"看清异常就退散"：因为一开始他是被外界所困住了，他并不是以心为形役。在被外界困住的情况下，如果给他一个能够看清外界的机会，我相信大部分人都是会果断选择逃离的。。
+
+**引导思考**
+- 它最像你生活里哪种"被追赶感"——求职的紧迫性
+- 它退散的规则，你希望隐喻面对恐惧，创造未来
+---
+## 四、墙字 / 结局文案（你来填，氛围优先、不给具体词）
+
+- **广播整体调性**：冷酷
+- **每层广播想传递的"冷意"**（不点破隐喻，只给氛围）：
+  - 2F 广播：改变人生的机会，创造财富，迈上巅峰，取得辉煌成就______
+  - 3F 广播：一天、一周只要工作三四天，日薪一至两百，很好干的。______
+  - 4F 广播：拿各种公司文化来压你，或者说一定要先上来宣传公司的文化。
+
+不拉不拉，只字不提你可能会遭遇的、或者会被怎样对待的真实情况，比如他们对员工的实际待遇之类，都不会提到。______
+  - 5F 广播：宣扬"公司即为最高"，然后说什么"人生的财富都是由公司创造的"。并且主要是洗脑，让你心甘情愿地融入这一整个庞大系统中的一份子。______
+- **结局文案**（门后更长走廊那段，你来写）：______
+
+**引导思考**
+- 如果这游戏被一句话剧透，你希望那句话不要温和地走进那个良夜
+- 结局那句之后，你想**点一句**
+---
+
+## 五、哲学命题一句话（你来填）
+
+这游戏真正想说的是：不要放弃去推开属于你的门，让你自己停滞在某一时刻、某一节点，我希望你能够永远动起来。。
+
+**引导思考**
+- 用三个词形容你想表达的"困境"。它们怎么对应 5 层？（重复 / 错觉 / 囚禁 / 自欺 / 循环）
+- 你更认同  - B「人自己造了困住自己的迷宫」接近你的意思：
+---
+
+## 六、给玩家的"找异常"反馈（你来填）
+
+- **结算文案**（按找到几处自省，你来写）：______
+- 找到 **0 处 / 1–2 处 / 3–4 处 / 全找到** 分别给什么不同反馈？__逐步揭开迷雾。这样子结算完，他从零找到，再到全找到，过渡着，他的云是越来越散开了。然后散开之后，肯定是要露出他自己。__
+__
+
+**引导思考**
+- 你希望"没找到"的玩家感到愧疚、茫然、还是被嘲讽？这决定了反馈的语气。变得茫然
+
+---
+
+## 七、你还要加什么（自由填）
+
+视觉 / 音效 / 机制上，还有什么是你心里有、但上面没列的？______
+
+---希望最好能做第三人称的，而不是第一人称视角的那种游戏，感觉跟 PT 会更像。
+
+> 填完把这份文件发我（或直接在这里改完说一声），我照你的骨架写 v4，不再自作主张。
+</pre>
+<pre id="note2" class="notesPre"># v4 设计依据（用户大纲 → 落地）
+
+> 来源：`设计大纲_你来填.md`（舟行 2026-08-04 填写版）。
+> 本文件把舟行填的口语化、混有引导思考的内容**提炼成干净骨架**，并补全他留白的两处（结局文案、结算文案），标注【默认辅助】。v4 代码 `曾经我有一份工作.html` 即按此落地。
+
+---
+
+## 一、核心设定（用户原意）
+- 玩家：一个人，在写字楼里**扫楼寻找面试/工作机会**。
+- 表面目标：找到那份工作。
+- 实际发生：环境持续异变 + 行动路线不稳定 + 精神逐渐衰弱。
+- 核心困境（哲学）：**受限于资源获取困难，人往往无法从自己的行为定式里跳脱出来。** 既是舟行自己的，也是普遍人性的。
+
+## 二、五个异常物件（用户概念 → 游戏具象化）
+| 层 | 用户概念 | 游戏内物件 | 隐喻（不现于地图文字） |
+|---|---|---|---|
+| 2F | 父母的来电 / 自己的简历 / 公司招聘广告 | 公告板（三样叠在一起） | 推动你求职的，究竟是自己还是外界期待 |
+| 3F | 门的开合状态变化（被拒之门外的经历） | 一扇自己开、自己关的门 | 被拒之门外的无数次求职经历 |
+| 4F | 灯光异常（白亮 → 暗红冷光，危机四伏） | 顶灯渗出暗红 | 看似美好实则危机四伏、被骗/诈骗的经历 |
+| 5F | 前面那些的组合 + 综合判断 | 走廊尽头的镜子 | 心逐渐完善后，露出的是你自己 |
+
+> 实现：每层 1 个异常物件，靠近按 审视/E 细看 = 本层通关条件。地图文字只描述现象（"门在开合""灯渗暗红"），**不写隐喻**。
+
+## 三、怪物（用户原意）
+- 代表：**在社会中被工作异化的人，在竞争中迷失自我的人**。
+- 退散规则：一开始被外界困住（以心为形役）；给一个看清外界的机会，大部分人都会果断逃离 → 隐喻**面对恐惧，创造未来**。
+- 实现：2–5F 走廊远端生成、延时激活、贪心追人、碰到即死；你"看清"一处异常 → 它后退并眩晕。
+
+## 四、广播（用户原意：冷酷的招聘话术）
+- 调性：冷酷。只画大饼、虚低薪、拿公司文化压人，**绝不提真实待遇/会被怎样对待**。
+- 2F：改变人生的机会。创造财富。迈上巅峰。取得辉煌成就。
+- 3F：一天、一周只需工作三四天。日薪一百到两百。很好干的。
+- 4F：本公司文化至上。加入我们便是大家庭。至于待遇、加班、去留……那都是后话。
+- 5F（系统）：公司即为最高。人生的财富皆由公司创造。融入系统，您便不再孤独。
+
+## 五、哲学命题（用户原意）
+**不要放弃去推开属于你的门，让你自己停滞在某一时刻、某一节点；我希望你能够永远动起来。**
+- 接近选项 B「人自己造了困住自己的迷宫」，但更向前一步：迷宫虽自造，仍可走出去——只要一直推门。
+
+## 六、找异常反馈（用户原意：逐步揭迷雾，露出自己，语气茫然）
+- 0 处：雾还在，不知道自己是谁。
+- 1–2 处：雾散一点，看见父母的脸、关上的门、暗红的灯，还不够。
+- 3–4 处：雾更薄，快看清自己，但路还没走完。
+- 全找到：雾散，镜子里是你自己，门一直开着是你不肯推。
+
+## 七、结局文案【默认辅助·补全】
+> 用户未填，按"剧透句=不要温和地走进那个良夜 / 结局点一句"补全：
+```
+你推开第五层的门。
+门后——是一条更长的、一模一样的走廊。但这次，走廊尽头有光。不是暗红，是白的。
+你想起 2 楼那通父母的来电、3 楼那扇拒你的门、4 楼那盏骗你的灯。它们没消失，只是你终于看清了。
+[结算句：见第六节]
+你没有被困住。你只是，一直没敢推开属于自己的那扇。
+（不要温和地走进那个良夜。去推你的门。）
+```
+中途返回过的分支，文案改为"门后还是走廊，但尽头也有一点白光 / 你早该知道了，门一直开着是你不肯推"。
+
+## 八、自由加项（用户原意）
+- **第三人称俯视视角**（非第一人称），更像 PT。v4 已是俯视像素第三人称（玩家是小人，怪物是小人），满足。
+
+---
+
+## v4 实现要点（代码层）
+- 保留锁定项：俯视像素 / 5 层 / 第 1 层无异常 / 门处二选一 / 怪物追逐碰到死 / 魔女之家结局 / 手机摇杆 / 黑屏+低频闷响 / 情绪锚点"我是不是走错了" / 隐喻不现地图。
+- **新增机制（用户 5F 设计）**：本层有异常且未"看清"就选「继续下一层 / 推门」→ **强制传送回 1 楼重走**（`teleportTo1()`），但 `foundCount` 不清空（"心已完善"保留）。看清所有层的玩家能顺畅过关；从不看清的玩家无限循环——正好扣主题。
+- 异常物件、广播、怪物隐喻、哲学、结算均按上表落地。
+- JS 语法已 node 校验通过，零外部素材、双击即开、手机可玩。
+</pre>
+<pre id="note3" class="notesPre"># v5 设计依据（第一人称 3D · 无怪物 · 异常随机）
+
+> 本次按舟行 08-04 15:36 指令整体重做。前序版本见 `设计一页纸.md`（会议版，已脱节，保留作溯源）。
+
+## 〇 已落实的硬性指令
+1. **第一人称 3D 视角**：纯 canvas 光线投射（Wolfenstein/PT 式），零外部依赖、双击即开、作品集友好。
+2. **怪物已删除**：所有追逐 / 碰到即死逻辑移除。
+3. **找异常逻辑（按用户规则）**：
+   - 第 1 层必定正常（作为"基准层"，玩家记住其样貌）。
+   - 第 2–5 层每层进入时独立掷骰：**50% 概率出现异样**。
+   - 异样层表现：走廊泛红 + 闪烁 + 中段出现一处"不该有的东西"（红色脉动精灵，隐喻"非人/异化"）。
+   - 走到每层尽头两道门：**回望之门（退回入口）** 与 **向前之门（去更深处）**。
+   - 判定：**本层有异样 → 选回望；本层正常 → 选向前**。选对升层，选错被走廊"重置"回 1 层重走（呼应"走不出去"）。
+
+## 一 我【默认辅助】锁定的部分（你可随时改）
+- **推进模型**：无论选哪道门，只要"判定正确"就升一层；判定错误才重置回 1 层。即"回望/向前"是玩家对异样的作答，而非物理位移。
+  - 若你本意是"选回望就真的被送回上一层再重进"，告知我，我改成物理回退 + 同层重掷。
+- **异样可见性**：异样层有红色脉动精灵 + 整体泛红闪烁，正常层（含 1 层）是冷灰。玩家靠"对比 1 层记忆"判断。
+- **中性提示**：靠近异样物时屏底显示「（这里，有什么东西）」——只报"有东西"，不点破隐喻，不剧透答案。
+
+## 二 保留项
+- 黑屏 ~950ms + 低频闷响 → 淡入魔女之家式诡异走廊结局（门后 = 更长的、一模一样的走廊，尽头 307）。
+- 哲学隐喻只埋进结构与视觉（回廊重复 = 西西弗式徒劳；异样物 = 异化/非人；结局走廊 = 迷宫在内部），**地图文字不点破**。
+- localStorage 跨周目记仇：二周目开场增补「（你上周也来过这里。走廊认得你。）」。
+- 手机触控：左下摇杆移动、右半屏拖动转视角；桌面 WASD/方向键 + 鼠标拖动看。
+- 第三人称→第一人称：本次明确改为第一人称。
+
+## 三 操作
+- 桌面：W/S 前后，A/D 平移，←/→ 或鼠标拖动转头；走到尽头点选门。
+- 手机：左摇杆移动，右半屏拖动转头；尽头出现两道门按钮。
+
+## 四 待你试玩后定
+1. 走廊只 1 格宽（光线投射下视觉够宽，不挤）；若觉得太窄可加宽地图。
+2. 异样精灵的"瘆人度"：现在克制（红点脉动）。可加形状/拉伸。
+3. 50% 异常是否过难（错一次重置回 1 层）？可改为"错只重置本层重掷"。
+
+---
+
+## v5.1 用户原稿植入（08-04 15:50，使用大纲里「舟行填写」的内容，非默认）
+
+> 用户明确：用**他自己填进大纲**的内容，不是我补的默认。怪物按上一条指令已删；"异化的人"折进 4F 异样人形。
+
+### 异常物件概念（按楼层，来自大纲"二"）
+- **2F 异样**：海报/招聘广告形态（瘦长精灵）——隐喻"父母来电、自己简历、公司招聘广告，是什么推动我们去求职"。
+- **3F 异样**：门形态（宽门精灵）——隐喻"被拒之门外的无数次求职经历"，门的开合观感不对。
+- **4F 异样**：人形形态（窄精灵）+ 红冷光——隐喻"求职遇见的被骗/诈骗经历，看似美好实则危机四伏"；此处即"被工作异化的人"。
+- **5F 异样**：聚合形态（膨胀精灵）——前述组合，需玩家综合判断。
+
+### 冷酷广播（来自大纲"四"，逐字浮现，仅 2–5 层播放，1 层静默作基准）
+- 2F：「招聘广告」改变人生的机会，创造财富，迈上巅峰，取得辉煌成就。
+- 3F：「兼职信息」一天、一周只要工作三四天，日薪一至两百，很好干的。
+- 4F：「HR 留言」我们是个大家庭。先认同文化，别的以后再说。具体的，你来了就懂。（绝不提真实待遇）
+- 5F：「系统」公司即为最高。人生的财富，都是公司创造的。你，本就属于这里。（洗脑）
+
+### 哲学命题（来自大纲"五"）
+- 不要放弃去推开属于你的门，不要停滞在某一时刻/节点，永远动起来。
+- 落地：结局文案末句「不要温和地走进那个良夜。去推你的门——别让自己，停在任何一层。」
+
+### 结算反馈（来自大纲"六"）
+- 跟踪 `insights` = 正确识别异样的层数（揭开迷雾）。
+- 0 → 迷雾没散、不记得来做什么；1–2 → 隐约不对、镜中人一脸茫然；3–4 → 迷雾在退、人开始像你；全 → 迷雾散尽、镜中是自己，想起"找工作也是找自己"。
+- 语气按用户要求：**茫然**。
+
+### 一句话设定（来自大纲"一"）
+- 玩家扫楼找工作；表面找工作，真正发生的是环境改变+阻碍导致路线不稳+精神衰弱。核心困境：资源受限下，人往往跳不出自己的行为定式。
+</pre>
+</div>
+
+</body>
+</html>
